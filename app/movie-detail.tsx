@@ -156,10 +156,6 @@ export default function MovieDetail() {
                 <Text style={styles.title}>{movieDetail.name}</Text>
                 <Text style={styles.originalTitle}>{movieDetail.origin_name}</Text>
                 
-                {/* Thêm thông tin chi tiết trước danh sách tập */}
-                <MovieInfo movieDetail={movieDetail} />
-
-                {/* Render watch button cho phim lẻ */}
                 {movieDetail.type === 'single' && !showPlayer && (
                   <TouchableOpacity 
                     style={styles.watchButton}
@@ -169,7 +165,6 @@ export default function MovieDetail() {
                   </TouchableOpacity>
                 )}
 
-                {/* Render episodes cho phim bộ */}
                 {['series', 'hoathinh', 'tvshows'].includes(movieDetail.type) && (
                   <View style={styles.episodeContainer}>
                     {episodes?.map((server, serverIndex) => (
@@ -203,6 +198,8 @@ export default function MovieDetail() {
                     ))}
                   </View>
                 )}
+
+                <MovieInfo movieDetail={movieDetail} />
               </View>
             </>
           )}

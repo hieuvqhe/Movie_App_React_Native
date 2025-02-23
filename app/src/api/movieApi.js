@@ -1,6 +1,7 @@
 import axios from 'axios';
 
 const BASE_URL = 'https://phimapi.com';
+const BASE_IMAGE_URL = 'https://phimapi.com/images';
 
 export const getNewMovies = async (page = 1) => {
   try {
@@ -54,19 +55,24 @@ export const searchMovies = async (keyword, page = 1, limit = 24) => {
     if (response.data?.status === 'success') {
       const items = response.data.data.items.map(item => ({
         ...item,
-        poster_url: formatImageUrl(item.poster_url),
-        thumb_url: formatImageUrl(item.thumb_url),
+        poster_url: item.poster_url?.startsWith('http') 
+          ? item.poster_url 
+          : `${BASE_IMAGE_URL}/${item.poster_url}`,
+        thumb_url: item.thumb_url?.startsWith('http') 
+          ? item.thumb_url 
+          : `${BASE_IMAGE_URL}/${item.thumb_url}`,
         _id: item._id || `${item.slug}-${Date.now()}`
       }));
 
       return {
-        items,
-        totalItems: response.data.data.params.pagination.totalItems || items.length,
-        currentPage: response.data.data.params.pagination.currentPage || 1,
-        totalPages: response.data.data.params.pagination.totalPages || 1
+        status: 'success',
+        data: {
+          items,
+          params: response.data.data.params
+        }
       };
     }
-    return { items: [], totalItems: 0, currentPage: 1, totalPages: 1 };
+    return { status: 'error', msg: 'Không tìm thấy kết quả' };
   } catch (error) {
     console.error('Search API Error:', error);
     throw new Error('Không thể tìm kiếm phim. Vui lòng thử lại sau.');
