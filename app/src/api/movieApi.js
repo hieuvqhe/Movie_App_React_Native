@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const BASE_URL = 'https://phimapi.com';
-const BASE_IMAGE_URL = 'https://phimapi.com/images';
+const BASE_IMAGE_URL = 'https://phimimg.com';
 
 export const getNewMovies = async (page = 1) => {
   try {
@@ -63,12 +63,17 @@ export const searchMovies = async (keyword, page = 1, limit = 24) => {
           : `${BASE_IMAGE_URL}/${item.thumb_url}`,
         _id: item._id || `${item.slug}-${Date.now()}`
       }));
-
+      
       return {
         status: 'success',
         data: {
           items,
-          params: response.data.data.params
+          params: response.data.data.params,
+          pagination: {
+            currentPage: page,
+            totalPages: Math.ceil(response.data.data.params.pagination.totalItems / limit),
+            totalItems: response.data.data.params.pagination.totalItems
+          }
         }
       };
     }

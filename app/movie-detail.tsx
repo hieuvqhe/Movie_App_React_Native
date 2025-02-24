@@ -22,8 +22,24 @@ const CustomVideoPlayer = ({ url, thumbnail }: { url: string; thumbnail: string 
   );
 };
 
+// Define interface for movie detail props
+interface MovieDetailProps {
+  movieDetail: {
+    content: string;
+    status: string;
+    time: string;
+    quality: string;
+    lang: string;
+    year: string;
+    actor: string[];
+    director: string[];
+    category: Array<{ id: string; name: string }>;
+    country: Array<{ id: string; name: string }>;
+  };
+}
+
 // Thêm component hiển thị thông tin chi tiết
-const MovieInfo = ({ movieDetail }) => {
+const MovieInfo = ({ movieDetail }: MovieDetailProps) => {
   const [showFullContent, setShowFullContent] = useState(false);
   const contentPreview = movieDetail.content.slice(0, 150); // Giới hạn 150 ký tự
 

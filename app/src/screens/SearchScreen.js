@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useCallback } from 'react';
 import { 
   View, 
   Text, 
@@ -6,9 +6,11 @@ import {
   Image, 
   StyleSheet, 
   TouchableOpacity,
-  Dimensions 
+  Dimensions,
+  ActivityIndicator 
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import { searchMovies } from '../api/movieApi';
 
 const { width } = Dimensions.get('window');
 const COLUMN_COUNT = 2;
@@ -17,9 +19,14 @@ const BASE_IMAGE_URL = 'https://phimimg.com';
 const DEFAULT_IMAGE = 'https://placehold.co/300x450/000000/FFFFFF/png';
 
 const SearchScreen = () => {
+  const [allResults, setAllResults] = useState([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  
   const router = useRouter();
   const params = useLocalSearchParams();
-  
+
   const parseResults = () => {
     try {
       if (!params.results) return [];
@@ -43,15 +50,55 @@ const SearchScreen = () => {
     }
   };
 
-  const results = parseResults();
+  const initialResults = parseResults();
   const searchQuery = params.searchQuery || '';
-  const totalResults = params.totalResults || 0;
+  const totalResults = parseInt(params.totalResults) || 0;
+
+  React.useEffect(() => {
+    setAllResults(initialResults);
+  }, [params.results]);
+
+  const loadMoreResults = useCallback(async () => {
+    if (isLoadingMore || !hasMore) return;
+
+    setIsLoadingMore(true);
+    try {
+      const nextPage = currentPage + 1;
+      const response = await searchMovies(searchQuery, nextPage);
+      
+      if (response.status === 'success' && response.data.items.length > 0) {
+        setAllResults(prev => [...prev, ...response.data.items]);
+        setCurrentPage(nextPage);
+        setHasMore(allResults.length + response.data.items.length < totalResults);
+      } else {
+        setHasMore(false);
+      }
+    } catch (error) {
+      console.error('Error loading more results:', error);
+    } finally {
+      setIsLoadingMore(false);
+    }
+  }, [currentPage, searchQuery, isLoadingMore, hasMore, totalResults]);
+
+  const renderFooter = () => {
+    if (!isLoadingMore) return null;
+    return (
+      <View style={styles.loadingFooter}>
+        <ActivityIndicator size="small" color="#e50914" />
+      </View>
+    );
+  };
 
   const getFullImageUrl = (url) => {
-    if (!url) return DEFAULT_IMAGE;
-    if (url.startsWith('http')) return url;
-    return `${BASE_IMAGE_URL}/${url}`;
-  };
+  if (!url) {
+    console.log('No image URL provided, using default');
+    return DEFAULT_IMAGE;
+  }
+  if (url.startsWith('http')) return url;
+  const fullUrl = `${BASE_IMAGE_URL}/${url}`;
+  console.log('Generated image URL:', fullUrl); // Debug URL
+  return fullUrl;
+};
 
   const renderMovie = ({ item }) => {
     if (!item) return null;
@@ -91,7 +138,8 @@ const SearchScreen = () => {
     );
   };
 
-  if (!results || results.length === 0) {
+  // Kiểm tra kết quả tìm kiếm
+  if (!allResults || allResults.length === 0) {
     return (
       <View style={[styles.container, styles.centerContent]}>
         <Text style={styles.noResults}>Không tìm thấy kết quả</Text>
@@ -105,15 +153,18 @@ const SearchScreen = () => {
         Kết quả tìm kiếm: "{searchQuery}"
       </Text>
       <Text style={styles.resultCount}>
-        Tìm thấy {totalResults} kết quả
+        Hiển thị {allResults.length}/{totalResults} kết quả
       </Text>
 
       <FlatList
-        data={results}
+        data={allResults}
         renderItem={renderMovie}
         keyExtractor={item => item?._id?.toString() || Math.random().toString()}
         numColumns={2}
         contentContainerStyle={styles.listContent}
+        onEndReached={loadMoreResults}
+        onEndReachedThreshold={0.5}
+        ListFooterComponent={renderFooter}
         ListEmptyComponent={
           <View style={styles.centerContent}>
             <Text style={styles.noResults}>Không có kết quả phù hợp</Text>
@@ -203,7 +254,11 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-  }
+  },
+  loadingFooter: {
+    paddingVertical: 20,
+    alignItems: 'center',
+  },
 });
 
 export default SearchScreen;

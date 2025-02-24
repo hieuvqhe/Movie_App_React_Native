@@ -74,7 +74,7 @@ const Header = () => {
         router.push({
           pathname: '/search',
           params: {
-            keyword: searchText,
+            searchQuery: searchText,
             results: JSON.stringify(response.data.items),
             totalResults: response.data.params.pagination.totalItems
           }
