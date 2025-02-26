@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, StyleSheet, SafeAreaView, Animated, StatusBar, Dimensions, Platform } from 'react-native';
+import { View, StyleSheet, SafeAreaView, Animated, StatusBar, Platform } from 'react-native';
 import Banner from './src/components/Banner';
 import CategoryRow from './src/components/CategoryRow';
 import Header from './src/components/Header';
@@ -19,6 +19,9 @@ export default function Home() {
     longTiengMovies
   } = useMovieStore();
 
+  // Reference to track if dropdown is visible
+  const [isDropdownVisible, setIsDropdownVisible] = useState(false);
+
   useEffect(() => {
     fetchNewMovies();
     fetchCategoryMovies('phim-le');
@@ -32,7 +35,6 @@ export default function Home() {
   // Adjusted constants for proper positioning
   const SEARCH_BAR_HEIGHT = 60;
   const HEADER_HEIGHT = 60; 
-  const HEADER_TOP_POSITION = 0; // Changed to 0 to prevent header clipping
   const STATUS_BAR_HEIGHT = StatusBar.currentHeight || 0;
   const SCROLL_THRESHOLD = 10;
 
@@ -55,7 +57,7 @@ export default function Home() {
     extrapolate: 'clamp',
   });
 
-  // Enhanced scroll handler with special case for top position
+  // Enhanced scroll handler with modifications to respect dropdown
   const handleScroll = Animated.event(
     [{ nativeEvent: { contentOffset: { y: scrollY } } }],
     { 
@@ -63,6 +65,21 @@ export default function Home() {
       listener: (event: { nativeEvent: { contentOffset: { y: number } } }) => {
         const currentScrollY = event.nativeEvent.contentOffset.y;
         
+        // Don't hide search bar if dropdown is visible
+        if (isDropdownVisible) {
+          if (!isSearchBarVisible) {
+            Animated.spring(searchBarTranslateY, {
+              toValue: 0,
+              useNativeDriver: true,
+              bounciness: 0,
+              speed: 15,
+            }).start();
+            setIsSearchBarVisible(true);
+          }
+          lastScrollY.current = currentScrollY;
+          return;
+        }
+
         // Special case: Always show search bar when at or near the top
         if (currentScrollY <= 5) {
           if (!isSearchBarVisible) {
@@ -126,7 +143,7 @@ export default function Home() {
         <Header />
       </View>
 
-      {/* Search Bar positioned correctly */}
+      {/* Search Bar positioned correctly with higher zIndex to support dropdown */}
       <Animated.View 
         style={[
           styles.searchBarContainer,
@@ -138,19 +155,27 @@ export default function Home() {
             opacity: searchBarOpacity,
             top: safeAreaTopPadding + HEADER_HEIGHT, // Position below header
             height: SEARCH_BAR_HEIGHT,
+            // Make sure this container stays above all other content
+            zIndex: isDropdownVisible ? 1002 : 999,
           }
         ]}
       >
-        <SearchBar />
+        <SearchBar 
+          onDropdownVisibilityChange={setIsDropdownVisible} 
+        />
       </Animated.View>
 
       <Animated.ScrollView 
-        style={styles.contentContainer}
+        style={[
+          styles.contentContainer,
+          // Lower z-index when dropdown is visible
+          { zIndex: isDropdownVisible ? 900 : 998 }
+        ]}
         onScroll={handleScroll}
         scrollEventThrottle={16}
         contentContainerStyle={{ 
           paddingTop: totalHeaderHeight, // Use recalculated height
-          paddingBottom: 0
+          paddingBottom: 20
         }}
         bounces={true}
         showsVerticalScrollIndicator={false}
@@ -218,18 +243,16 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 0,
     right: 0,
-    zIndex: 999,
     backgroundColor: '#1a1a1a',
     paddingHorizontal: 10,
     paddingVertical: 8,
-    // Remove the border to fix the extra gap issue
     elevation: 4,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 2,
     // Ensure no extra space
-    overflow: 'hidden',
+    overflow: 'visible', // <-- Changed to visible to allow dropdown to be seen
   },
   contentContainer: {
     flex: 1,
