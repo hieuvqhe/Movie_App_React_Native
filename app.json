@@ -22,11 +22,14 @@
       }
     },
     "android": {
+      "package": "com.yourcompany.movieapp",
+      "versionCode": 1,
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
       "permissions": [
+        "android.permission.INTERNET",
         "android.permission.FOREGROUND_SERVICE",
         "android.permission.PICTURE_IN_PICTURE"
       ]
@@ -73,9 +76,8 @@
         "projectId": "5ff9ed7a-4508-4ab7-9c20-953242290d65"
       }
     },
-    "runtimeVersion": {
-      "policy": "appVersion"
-    },
+    "runtimeVersion": "1.0.0",
+
     "updates": {
       "url": "https://u.expo.dev/5ff9ed7a-4508-4ab7-9c20-953242290d65"
     }
