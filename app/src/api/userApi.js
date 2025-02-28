@@ -214,7 +214,7 @@ export const removeFavorite = async (movieId) => {
     });
 
     const data = await response.json();
-    console.log('Remove favorite response:', data); // Debug log
+   
     
     if (!response.ok) {
       throw new Error(data.message || 'Không thể xóa khỏi danh sách yêu thích');

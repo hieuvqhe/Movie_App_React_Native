@@ -18,13 +18,19 @@ import { getFavoriteMovies, removeFavorite } from './src/api/userApi';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = width / 2 - 24; // Two cards per row with padding
+const DEFAULT_IMAGE = 'https://placehold.co/300x450/000000/FFFFFF/png';
 
+// Updated interface to match server response structure
 interface Movie {
-  id: string;
-  title: string;
-  posterUrl: string;
+  _id: string;
+  movieId: string;
+  name: string;
+  slug: string;
+  thumbUrl: string;
+  type: string;
   year: string;
-  duration: string;
+  quality?: string;
+  origin_name?: string;
 }
 
 export default function Favorites() {
@@ -54,8 +60,16 @@ export default function Favorites() {
       }
       
       // Fetch user's favorite movies
-      const favMovies = await getFavoriteMovies();
-      setFavorites(favMovies);
+      const response = await getFavoriteMovies();
+      
+      // Check if the response contains favoriteMovies array
+      if (response && response.favoriteMovies) {
+        // Set the actual array of movies, not the whole response
+        setFavorites(response.favoriteMovies);
+      } else {
+        console.error('Unexpected response format:', response);
+        setFavorites([]);
+      }
     } catch (error) {
       console.error('Error loading favorites:', error);
       Alert.alert('Lỗi', 'Không thể tải danh sách phim yêu thích');
@@ -83,7 +97,7 @@ export default function Favorites() {
             try {
               await removeFavorite(movieId);
               // Update local state
-              setFavorites(favorites.filter(movie => movie.id !== movieId));
+              setFavorites(favorites.filter(movie => movie.movieId !== movieId));
               Alert.alert('Thành công', 'Đã xóa phim khỏi danh sách yêu thích');
             } catch (error) {
               console.error('Error removing favorite:', error);
@@ -95,35 +109,46 @@ export default function Favorites() {
     );
   };
 
+  // Format image URL correctly
+  const getImageUrl = (url: string | undefined): string => {
+    if (!url) return DEFAULT_IMAGE;
+    return url.startsWith('http') ? url : `https://phimimg.com/${url}`;
+  };
+
   const renderMovieCard = ({ item }: { item: Movie }) => (
     <View style={styles.cardContainer}>
       <TouchableOpacity
         style={styles.card}
         onPress={() => router.push({
           pathname: '/movie-detail',
-          params: { id: item.id }
+          params: { slug: item.slug }
         })}
       >
         <Image
-          source={{ uri: item.posterUrl }}
+          source={{ uri: getImageUrl(item.thumbUrl) }}
           style={styles.poster}
           resizeMode="cover"
         />
         <TouchableOpacity
           style={styles.favoriteButton}
-          onPress={() => handleRemoveFavorite(item.id)}
+          onPress={() => handleRemoveFavorite(item.movieId)}
         >
           <Ionicons name="heart" size={18} color="#e50914" />
         </TouchableOpacity>
         <View style={styles.infoContainer}>
-          <Text style={styles.title} numberOfLines={2}>{item.title}</Text>
+          <Text style={styles.title} numberOfLines={2}>{item.name}</Text>
           <View style={styles.metadata}>
             <Text style={styles.metadataText}>{item.year}</Text>
-            {item.duration && (
+            {item.quality && (
               <>
                 <Text style={styles.metadataDot}>•</Text>
-                <Text style={styles.metadataText}>{item.duration}</Text>
+                <Text style={styles.qualityText}>{item.quality}</Text>
               </>
+            )}
+            {item.origin_name && (
+              <Text style={styles.originName} numberOfLines={1}>
+                {item.origin_name}
+              </Text>
             )}
           </View>
         </View>
@@ -161,7 +186,7 @@ export default function Favorites() {
       <FlatList
         data={favorites}
         renderItem={renderMovieCard}
-        keyExtractor={item => item.id}
+        keyExtractor={item => item.movieId || item._id}
         numColumns={2}
         contentContainerStyle={styles.listContainer}
         showsVerticalScrollIndicator={false}
@@ -244,6 +269,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginTop: 4,
+    flexWrap: 'wrap',
   },
   metadataText: {
     color: '#999',
@@ -253,6 +279,17 @@ const styles = StyleSheet.create({
     color: '#999',
     fontSize: 12,
     marginHorizontal: 4,
+  },
+  qualityText: {
+    color: '#e50914',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  originName: {
+    color: '#999',
+    fontSize: 11,
+    marginTop: 2,
+    width: '100%',
   },
   emptyContainer: {
     flex: 1,

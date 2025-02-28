@@ -73,6 +73,7 @@ export default function Profile() {
     dateJoined?: string;
     favoriteCount?: number;
     avatar?: string;
+    favoriteMovies?: any[];  // Add explicit type for favoriteMovies
   } | null>(null);
   
   const [isChangePasswordVisible, setIsChangePasswordVisible] = useState(false);
@@ -135,7 +136,15 @@ export default function Profile() {
       const response = await getUserProfile();
       
       if (response.success && response.user) {
-        setUserData(response.user);
+        // Calculate favoriteCount from favoriteMovies array
+        const favCount = response.user.favoriteMovies ? response.user.favoriteMovies.length : 0;
+        
+        // Set user data with calculated favoriteCount
+        setUserData({
+          ...response.user,
+          favoriteCount: favCount
+        });
+        
         setNewUserName(response.user.name || '');
         showNotification('Đã tải thông tin hồ sơ');
       } else {
@@ -262,6 +271,11 @@ export default function Profile() {
     }, 100);
   };
 
+  // Navigate to favorites screen
+  const handleNavigateToFavorites = () => {
+    router.push('/favorites');
+  };
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -322,12 +336,18 @@ export default function Profile() {
           )}
         </View>
         
-        <View style={styles.statsContainer}>
+        {/* Make the stats container clickable */}
+        <TouchableOpacity 
+          style={styles.statsContainer}
+          onPress={handleNavigateToFavorites}
+          activeOpacity={0.7}
+        >
           <View style={styles.statItem}>
             <Text style={styles.statValue}>{userData?.favoriteCount || 0}</Text>
             <Text style={styles.statLabel}>Phim yêu thích</Text>
+            <Ionicons name="chevron-forward" size={16} color="#666" style={styles.statIcon} />
           </View>
-        </View>
+        </TouchableOpacity>
         
         <View style={styles.menuContainer}>
           <TouchableOpacity 
@@ -538,16 +558,20 @@ const styles = StyleSheet.create({
   },
   statItem: {
     alignItems: 'center',
+    flexDirection: 'row', // Changed to row for the icon
   },
   statValue: {
     fontSize: 22,
     fontWeight: 'bold',
     color: '#e50914',
-    marginBottom: 4,
+    marginRight: 8,
   },
   statLabel: {
     fontSize: 14,
     color: '#888',
+  },
+  statIcon: {
+    marginLeft: 8,
   },
   menuContainer: {
     padding: 16,
@@ -618,7 +642,7 @@ const styles = StyleSheet.create({
   // Add styles for notifications
   notificationContainer: {
     position: 'absolute',
-    top: Platform.OS === 'ios' ? 50 : 0,
+    top: Platform.OS === 'ios' ? 0 : 0,
     left: 20,
     right: 20,
     flexDirection: 'row',
