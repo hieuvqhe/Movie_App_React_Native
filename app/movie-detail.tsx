@@ -1,8 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { View, Image, Text, StyleSheet, ActivityIndicator, FlatList, TouchableOpacity } from 'react-native';
-import { useLocalSearchParams } from 'expo-router';
+import { View, Image, Text, StyleSheet, ActivityIndicator, FlatList, TouchableOpacity, Alert } from 'react-native';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import useMovieDetailStore from './src/store/movieDetailsStore';
+import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { addFavorite, removeFavorite, checkMovieFavoriteStatus } from './src/api/userApi';
 
 const CustomVideoPlayer = ({ url, thumbnail }: { url: string; thumbnail: string }) => {
   const player = useVideoPlayer(url, player => {
@@ -93,6 +96,7 @@ const MovieInfo = ({ movieDetail }: MovieDetailProps) => {
 
 export default function MovieDetail() {
     const { slug } = useLocalSearchParams();
+    const router = useRouter();
     const { 
       movieDetail, 
       episodes, 
@@ -103,6 +107,8 @@ export default function MovieDetail() {
       setSelectedEpisode 
     } = useMovieDetailStore();
     const [showPlayer, setShowPlayer] = useState(false);
+    const [isFavorite, setIsFavorite] = useState(false);
+    const [isProcessing, setIsProcessing] = useState(false);
   
     useEffect(() => {
       if (slug) {
@@ -110,7 +116,23 @@ export default function MovieDetail() {
         setShowPlayer(false);
       }
     }, [slug]);
-  
+
+    // Check favorite status whenever movieDetail changes
+    useEffect(() => {
+      if (movieDetail?._id) {
+        checkFavoriteStatus(movieDetail._id);
+      }
+    }, [movieDetail]);
+    
+    const checkFavoriteStatus = async (movieId) => {
+      try {
+        const isFav = await checkMovieFavoriteStatus(movieId);
+        setIsFavorite(isFav);
+      } catch (error) {
+        console.error("Error checking favorite status:", error);
+      }
+    };
+
     const handleEpisodeSelect = (episode: any) => {
       setSelectedEpisode(episode);
       setShowPlayer(true);
@@ -120,6 +142,55 @@ export default function MovieDetail() {
       if (episodes && episodes[0]?.server_data?.[0]) {
         setSelectedEpisode(episodes[0].server_data[0]);
         setShowPlayer(true);
+      }
+    };
+
+    const handleFavoritePress = async () => {
+      if (!movieDetail) return;
+
+      try {
+        const token = await AsyncStorage.getItem('accessToken');
+        if (!token) {
+          Alert.alert(
+            'Thông báo',
+            'Vui lòng đăng nhập để sử dụng tính năng này',
+            [
+              { text: 'Hủy', style: 'cancel' },
+              { text: 'Đăng nhập', onPress: () => router.push('/login') }
+            ]
+          );
+          return;
+        }
+
+        setIsProcessing(true);
+
+        if (isFavorite) {
+          const response = await removeFavorite(movieDetail._id);
+          if (response.success) {
+            setIsFavorite(false);
+            Alert.alert('Thành công', 'Đã xóa khỏi danh sách yêu thích');
+          }
+        } else {
+          const movieData = {
+            movieId: movieDetail._id,
+            name: movieDetail.name,
+            slug: movieDetail.slug,
+            thumbUrl: movieDetail.thumb_url,
+            type: movieDetail.type,
+            year: movieDetail.year
+          };
+          
+          const response = await addFavorite(movieData);
+          if (response.success) {
+            setIsFavorite(true);
+            Alert.alert('Thành công', 'Đã thêm vào danh sách yêu thích');
+          }
+        }
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Có lỗi xảy ra';
+        Alert.alert('Lỗi', errorMessage);
+      } finally {
+        setIsProcessing(false);
       }
     };
 
@@ -169,8 +240,26 @@ export default function MovieDetail() {
               </View>
               
               <View style={styles.infoContainer}>
-                <Text style={styles.title}>{movieDetail.name}</Text>
-                <Text style={styles.originalTitle}>{movieDetail.origin_name}</Text>
+                <View style={styles.titleContainer}>
+                  <View style={styles.titleWrapper}>
+                    <Text style={styles.title}>{movieDetail.name}</Text>
+                    <Text style={styles.originalTitle}>{movieDetail.origin_name}</Text>
+                  </View>
+                  <TouchableOpacity 
+                    style={[
+                      styles.favoriteButton,
+                      isProcessing && styles.favoriteButtonDisabled
+                    ]}
+                    onPress={handleFavoritePress}
+                    disabled={isProcessing}
+                  >
+                    <Ionicons 
+                      name={isFavorite ? "heart" : "heart-outline"} 
+                      size={28} 
+                      color={isFavorite ? "#e50914" : "#fff"} 
+                    />
+                  </TouchableOpacity>
+                </View>
                 
                 {movieDetail.type === 'single' && !showPlayer && (
                   <TouchableOpacity 
@@ -266,6 +355,16 @@ const styles = StyleSheet.create({
   infoContainer: {
     padding: 15,
   },
+  titleContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 10,
+  },
+  titleWrapper: {
+    flex: 1,
+    marginRight: 10,
+  },
   title: {
     color: '#fff',
     fontSize: 24,
@@ -276,6 +375,16 @@ const styles = StyleSheet.create({
     color: '#999',
     fontSize: 16,
     marginBottom: 10,
+  },
+  favoriteButton: {
+    padding: 8,
+    borderRadius: 20,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    borderWidth: 1,
+    borderColor: '#fff',
+  },
+  favoriteButtonDisabled: {
+    opacity: 0.5,
   },
   watchButton: {
     backgroundColor: '#e50914',

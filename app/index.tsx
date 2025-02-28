@@ -1,5 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { View, StyleSheet, SafeAreaView, Animated, StatusBar, Platform } from 'react-native';
+import { useFocusEffect } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import Banner from './src/components/Banner';
 import CategoryRow from './src/components/CategoryRow';
 import Header from './src/components/Header';
@@ -127,6 +129,43 @@ export default function Home() {
   // Recalculate proper heights considering status bar
   const safeAreaTopPadding = Platform.OS === 'ios' ? 30 : STATUS_BAR_HEIGHT;
   const totalHeaderHeight = HEADER_HEIGHT + SEARCH_BAR_HEIGHT + safeAreaTopPadding - 40;
+
+  // Check if we have a valid auth token when screen comes into focus
+  useFocusEffect(
+    React.useCallback(() => {
+      const checkAuthStatus = async () => {
+        try {
+          const token = await AsyncStorage.getItem('accessToken');
+          console.log('Home screen focused - auth token exists:', !!token);
+          // You can store this in a global state if needed
+        } catch (error) {
+          console.error('Error checking auth status:', error);
+        }
+      };
+      
+      checkAuthStatus();
+    }, [])
+  );
+
+  // Set up a listener for app state changes to handle background/foreground transitions
+  useEffect(() => {
+    const handleAppStateChange = async () => {
+      try {
+        // Refresh token check when app comes to foreground
+        await AsyncStorage.getItem('accessToken');
+      } catch (error) {
+        console.error('App state change error:', error);
+      }
+    };
+
+    // Add app state change listener if needed
+    // AppState.addEventListener('change', handleAppStateChange);
+    
+    // Return cleanup function
+    // return () => {
+    //   AppState.removeEventListener('change', handleAppStateChange);
+    // };
+  }, []);
 
   return (
     <SafeAreaView style={styles.container}>
